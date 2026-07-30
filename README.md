@@ -9,6 +9,9 @@ Serveur privé du conseiller virtuel de la page Shopify `Conseiller virtuel`.
 - conserve le contexte des derniers échanges transmis par la page ;
 - recherche d’abord les produits dans le catalogue CLASS’CLOPE ;
 - ne confirme une compatibilité que si le catalogue la contient ;
+- revérifie prix, variantes et disponibilité via Shopify avant d’afficher au maximum trois cartes ;
+- propose un parcours guidé court et un transfert vers la page Contact ;
+- accepte une télémétrie anonyme minimale sur `/api/events` ;
 - renvoie des liens vers les fiches pertinentes ;
 - limite la taille des requêtes, les origines autorisées et le nombre de demandes.
 
@@ -24,6 +27,8 @@ Serveur privé du conseiller virtuel de la page Shopify `Conseiller virtuel`.
    `https://VOTRE-SERVEUR/api/adviser`
 
 Ne jamais copier la clé OpenAI dans Shopify, un fichier JavaScript, GitHub ou ce chat.
+
+La route publique Shopify `/products/{handle}.js` est utilisée en lecture seule. Si elle est momentanément indisponible, le conseiller affiche « Disponibilité à confirmer » et ne prétend pas connaître le stock.
 
 ## Mise à jour du catalogue
 

@@ -8,7 +8,7 @@ const STOP_WORDS = new Set([
   'resistance', 'résistance', 'résistances', 'sur', 'une', 'valeur', 'vape', 'vous'
 ]);
 
-function normalize(value = '') {
+export function normalize(value = '') {
   return value
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -100,6 +100,58 @@ export function publicSources(products, shopBaseUrl) {
     vendor: product.vendor,
     variants: product.variants.map((variant) => variant.option).filter(Boolean)
   }));
+}
+
+export function productCards(products, shopBaseUrl, limit = 3) {
+  return products.slice(0, limit).map((product) => ({
+    handle: product.handle,
+    title: product.title,
+    vendor: product.vendor,
+    type: product.type,
+    url: new URL(product.url, shopBaseUrl).toString(),
+    image: product.image || '',
+    price: product.variants.find((variant) => variant.price)?.price || '',
+    available: true,
+    variants: product.variants.map((variant) => ({
+      title: variant.option,
+      price: variant.price || '',
+      available: true
+    })).slice(0, 8),
+    features: [product.draw, product.capacity, product.power, product.flavor, product.ratio, product.key_points]
+      .filter(Boolean)
+      .slice(0, 3),
+    why: recommendationReason(product)
+  }));
+}
+
+function recommendationReason(product) {
+  if (product.compatibility || product.cartridges) {
+    return `Sa compatibilité documentée correspond au matériel ou au composant recherché.`;
+  }
+  if (product.flavor) return `Son profil ${product.flavor.toLowerCase()} correspond à votre recherche.`;
+  if (product.draw) return `Son tirage ${product.draw.toLowerCase()} correspond au style de vape recherché.`;
+  return `Il fait partie des références CLASS’CLOPE les plus proches de votre demande.`;
+}
+
+export function verifyCompatibility(query, products) {
+  const normalizedQuery = normalize(query);
+  const isCompatibilityQuestion = /\b(compatib|resistance|cartouche|clearomiseur|coil)\b/.test(normalizedQuery);
+  if (!isCompatibilityQuestion) return { requested: false, status: 'not_applicable', evidence: [] };
+
+  const evidence = products
+    .filter((product) => product.compatibility || product.cartridges)
+    .filter((product) => {
+      const title = normalize(product.title);
+      return normalizedQuery.includes(title) || title.split(' ').filter((part) => part.length > 2).every((part) => normalizedQuery.includes(part));
+    })
+    .map((product) => ({
+      product: product.title,
+      statement: product.compatibility || product.cartridges,
+      url: product.url
+    }));
+
+  if (!evidence.length) return { requested: true, status: 'unknown', evidence: [] };
+  return { requested: true, status: 'verified', evidence };
 }
 
 export function compactContext(products) {
