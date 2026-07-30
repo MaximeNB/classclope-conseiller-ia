@@ -3,7 +3,7 @@ import { compactContext, publicSources, searchCatalog, catalogStats, productCard
 import { streamOpenAIResponse, parseOpenAIStream } from './openai.mjs';
 import { buildInput, SYSTEM_INSTRUCTIONS } from './prompt.mjs';
 import { enrichCardsFromShopify } from './shopify.mjs';
-import { guidedQuestion, needsHuman } from './guidance.mjs';
+import { conversationIntent, guidedQuestion, needsHuman, orderSupport, safetyResponse, shouldShowProductCards } from './guidance.mjs';
 
 const port = Number(process.env.PORT || 8787);
 const apiKey = process.env.OPENAI_API_KEY || '';
@@ -19,6 +19,7 @@ const maxRequests = Number(process.env.MAX_REQUESTS_PER_5_MINUTES || 25);
 const rateWindowMs = 5 * 60 * 1000;
 const rateBuckets = new Map();
 const metrics = { conversations: 0, errors: 0, recommendations: 0, human_transfers: 0, product_clicks: 0, add_to_cart: 0 };
+const requestTimeoutMs = Number(process.env.REQUEST_TIMEOUT_MS || 25_000);
 
 function remoteAddress(request) {
   return (
@@ -91,6 +92,7 @@ const server = createServer(async (request, response) => {
   if (request.method === 'GET' && url.pathname === '/health') {
     return sendJson(response, 200, {
       ok: true,
+      version: '2.2.0-premium',
       model,
       catalog_products: catalogStats.products,
       catalog_generated_at: catalogStats.generatedAt,
@@ -135,9 +137,12 @@ const server = createServer(async (request, response) => {
   const searchQuery = [...history.filter((item) => item.role === 'user').slice(-3).map((item) => item.content), message].join(' ');
   const matches = searchCatalog(searchQuery, 8);
   const compatibility = verifyCompatibility(searchQuery, matches);
+  const intent = conversationIntent(message, history);
   const guide = guidedQuestion(message, history);
+  const order = orderSupport(message, shopBaseUrl);
+  const safety = safetyResponse(message);
   const sources = publicSources(matches, shopBaseUrl);
-  const human = needsHuman(message, compatibility);
+  const human = needsHuman(message, compatibility, intent);
   metrics.conversations += history.length ? 0 : 1;
 
   response.writeHead(200, {
@@ -147,7 +152,18 @@ const server = createServer(async (request, response) => {
     ...cors
   });
 
-  response.write(`${JSON.stringify({ type: 'verification', compatibility, human })}\n`);
+  response.write(`${JSON.stringify({ type: 'verification', compatibility, human, intent })}\n`);
+
+  if (safety || order) {
+    response.write(`${JSON.stringify({ type: 'delta', delta: safety || order.text })}\n`);
+    if (order?.link) response.write(`${JSON.stringify({ type: 'sources', items: [order.link] })}\n`);
+    if (human) {
+      metrics.human_transfers += 1;
+      response.write(`${JSON.stringify({ type: 'human', url: new URL('/pages/contact', shopBaseUrl).toString() })}\n`);
+    }
+    response.write(`${JSON.stringify({ type: 'done' })}\n`);
+    return response.end();
+  }
 
   if (guide) {
     response.write(`${JSON.stringify({ type: 'delta', delta: guide.text })}\n`);
@@ -157,17 +173,12 @@ const server = createServer(async (request, response) => {
   }
 
   const abortController = new AbortController();
+  const timeout = setTimeout(() => abortController.abort(new Error('REQUEST_TIMEOUT')), requestTimeoutMs);
   request.on('aborted', () => abortController.abort());
   response.on('close', () => {
     if (!response.writableEnded) abortController.abort();
   });
 
-  const cards = await enrichCardsFromShopify(productCards(matches, shopBaseUrl), shopBaseUrl, abortController.signal);
-  const availableCards = cards.filter((card) => card.available !== false).slice(0, 3);
-  if (availableCards.length) {
-    metrics.recommendations += availableCards.length;
-    response.write(`${JSON.stringify({ type: 'products', items: availableCards })}\n`);
-  }
   if (human) {
     metrics.human_transfers += 1;
     response.write(`${JSON.stringify({ type: 'human', url: new URL('/pages/contact', shopBaseUrl).toString() })}\n`);
@@ -177,7 +188,8 @@ const server = createServer(async (request, response) => {
     history,
     catalogContext: compactContext(matches),
     pageUrl: typeof body.page_url === 'string' ? new URL(body.page_url, shopBaseUrl).origin + new URL(body.page_url, shopBaseUrl).pathname : '',
-    compatibility
+    compatibility,
+    intent
   });
   response.write(`${JSON.stringify({ type: 'sources', items: sources })}\n`);
 
@@ -193,15 +205,25 @@ const server = createServer(async (request, response) => {
     for await (const event of parseOpenAIStream(stream)) {
       response.write(`${JSON.stringify(event)}\n`);
     }
+    if (shouldShowProductCards(intent, message)) {
+      const cards = await enrichCardsFromShopify(productCards(matches, shopBaseUrl), shopBaseUrl, abortController.signal);
+      const availableCards = cards.filter((card) => card.available !== false).slice(0, 3);
+      if (availableCards.length) {
+        metrics.recommendations += availableCards.length;
+        response.write(`${JSON.stringify({ type: 'products', items: availableCards })}\n`);
+      }
+    }
     response.write(`${JSON.stringify({ type: 'done' })}\n`);
     response.end();
   } catch (error) {
     metrics.errors += 1;
     if (!response.writableEnded) {
-      response.write(`${JSON.stringify({ type: 'error', message: 'Le conseiller est momentanément indisponible.' })}\n`);
+      response.write(`${JSON.stringify({ type: 'error', message: "Je rencontre un délai technique. Vous pouvez réessayer ou utiliser « Parler à un conseiller »." })}\n`);
       response.end();
     }
     console.error(error);
+  } finally {
+    clearTimeout(timeout);
   }
 });
 

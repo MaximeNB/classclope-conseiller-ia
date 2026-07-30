@@ -1,4 +1,13 @@
-# Conseiller IA CLASS’CLOPE
+# Conseiller IA CLASS'CLOPE
+
+## Version 2.2 Premium
+
+- priorité stricte : sécurité, santé, dépannage, commande/SAV, compatibilité, information, recommandation ;
+- mémoire du parcours pour les réponses courtes ;
+- suivi de commande via l'espace client et transfert sécurisé pour le SAV ;
+- aucune carte commerciale pendant un dépannage ou une demande de commande ;
+- cartes affichées après l'explication et seulement lors d'une intention d'achat explicite ;
+- arrêt contrôlé et réponse de secours si un service répond trop lentement.
 
 Serveur privé du conseiller virtuel de la page Shopify `Conseiller virtuel`.
 
