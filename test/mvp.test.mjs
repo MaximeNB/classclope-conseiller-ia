@@ -33,6 +33,28 @@ test('tonka seul déclenche une recommandation précise sans questionnaire', () 
   assert.equal(shouldShowProductCards(intent, 'tonka', products), true);
 });
 
+test('Expérimenté avec accent poursuit le besoin initial sans boucle', () => {
+  const history = [
+    { role: 'user', content: 'Je cherche le pod le moins cher et le plus puissant' },
+    { role: 'assistant', content: 'Pour bien vous orienter : êtes-vous débutant ou expérimenté ?' }
+  ];
+  assert.equal(conversationIntent('Expérimenté', history), 'recommendation');
+  assert.equal(guidedQuestion('Expérimenté', history), null);
+});
+
+test('une question de qualification déjà posée ne peut pas boucler', () => {
+  const history = [
+    { role: 'user', content: 'Je veux un pod' },
+    { role: 'assistant', content: 'Pour bien vous orienter : êtes-vous débutant ou expérimenté ?' }
+  ];
+  const next = guidedQuestion('Expérimenté', history);
+  assert.notEqual(next?.text, 'Pour bien vous orienter : êtes-vous débutant ou expérimenté ?');
+});
+
+test('une comparaison prix puissance est exploitable sans questionnaire', () => {
+  assert.equal(guidedQuestion('Quel est le pod le moins cher et le plus puissant ?', []), null);
+});
+
 test('la recherche Shopify rapide extrait le nom utile', () => {
   const queries = liveSearchQueries('Je cherche le nouveau Emerald Slash de OverCloud');
   assert.ok(queries.includes('emerald slash overcloud'));
@@ -77,9 +99,10 @@ test('un goût de brûlé reste un dépannage même si une résistance est cité
 });
 
 test('une demande explicite de choix conserve les cartes produit', () => {
-  const intent = conversationIntent('Je cherche un e-liquide fruité');
+  const products = searchCatalog('Je cherche un e-liquide fruité');
+  const intent = conversationIntent('Je cherche un e-liquide fruité', [], products);
   assert.equal(intent, 'recommendation');
-  assert.equal(shouldShowProductCards(intent, 'Je cherche un e-liquide fruité'), true);
+  assert.equal(shouldShowProductCards(intent, 'Je cherche un e-liquide fruité', products), true);
 });
 
 test('je veux un liquide est bien une recommandation produit', () => {
@@ -99,7 +122,7 @@ test('une question technique complète ne reprend pas à tort le parcours produi
 test('une contradiction sur un produit obtient une explication honnête', () => {
   const products = searchCatalog('je veux un liquide a base de tonka');
   const answer = searchFeedbackResponse('pourtant tu en as sur le site', products);
-  assert.match(answer, /mal classé/i);
+  assert.match(answer, /conclu trop tôt/i);
   assert.match(answer, /Emrald Slash/i);
   assert.doesNotMatch(answer, /vient d'être chargé|apparaît maintenant/i);
 });

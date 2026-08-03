@@ -27,7 +27,7 @@ export async function searchLiveCatalog(message, shopBaseUrl, signal) {
     url.searchParams.set('resources[type]', 'product');
     url.searchParams.set('resources[limit]', '6');
     const response = await fetch(url, {
-      headers: { Accept: 'application/json', 'User-Agent': "CLASS'CLOPE-Adviser/2.5" },
+      headers: { Accept: 'application/json', 'User-Agent': "CLASS'CLOPE-Adviser/3.1" },
       signal
     });
     if (!response.ok) return [];
@@ -58,11 +58,10 @@ export async function searchLiveCatalog(message, shopBaseUrl, signal) {
 }
 
 export async function enrichCardsFromShopify(cards, shopBaseUrl, signal) {
-  const results = [];
-  for (const card of cards.slice(0, 3)) {
+  return Promise.all(cards.slice(0, 3).map(async (card) => {
     try {
       const live = await fetchProduct(card.handle, shopBaseUrl, signal);
-      results.push({
+      return {
         ...card,
         title: live.title || card.title,
         image: live.featured_image || live.images?.[0] || card.image,
@@ -74,12 +73,11 @@ export async function enrichCardsFromShopify(cards, shopBaseUrl, signal) {
           price: formatPrice(variant.price),
           available: Boolean(variant.available)
         })).slice(0, 8)
-      });
+      };
     } catch {
-      results.push({ ...card, available: null, stockLabel: 'Disponibilité à confirmer' });
+      return { ...card, price: '', variants: [], available: null, stockLabel: 'Disponibilité à confirmer' };
     }
-  }
-  return results;
+  }));
 }
 
 async function fetchProduct(handle, shopBaseUrl, signal) {
@@ -87,7 +85,7 @@ async function fetchProduct(handle, shopBaseUrl, signal) {
   const saved = cache.get(key);
   if (saved && Date.now() - saved.at < CACHE_MS) return saved.value;
   const response = await fetch(new URL(`/products/${encodeURIComponent(handle)}.js`, shopBaseUrl), {
-    headers: { Accept: 'application/json', 'User-Agent': "CLASS'CLOPE-Adviser/2.0" },
+    headers: { Accept: 'application/json', 'User-Agent': "CLASS'CLOPE-Adviser/3.1" },
     signal
   });
   if (!response.ok) throw new Error(`Shopify ${response.status}`);
@@ -120,6 +118,12 @@ function extractFlavor(description = '') {
   return match?.[1]?.trim() || '';
 }
 
+function extractLabeledValue(description = '', labels = []) {
+  const alternation = labels.join('|');
+  const match = description.match(new RegExp(`\\b(?:${alternation})\\s*:\\s*(.{1,100}?)(?=\\s+(?:Saveurs?|Contenance|Composition|Marque|Nicotine|Ratio|PG\\/VG|Puissance|Autonomie|Origine|Conformité|Livraison)\\s*:|$)`, 'i'));
+  return match?.[1]?.trim() || '';
+}
+
 function liveProductToCatalog(product) {
   const description = stripHtml(product.body_html || '');
   return {
@@ -132,11 +136,11 @@ function liveProductToCatalog(product) {
     seo_description: '',
     compatibility: '',
     cartridges: '',
-    power: '',
-    draw: '',
-    capacity: '',
+    power: extractLabeledValue(description, ['Puissance', 'Puissance maximale']),
+    draw: extractLabeledValue(description, ['Tirage', 'Type de tirage']),
+    capacity: extractLabeledValue(description, ['Contenance', 'Capacité']),
     flavor: extractFlavor(description),
-    ratio: '',
+    ratio: extractLabeledValue(description, ['Ratio', 'PG\\/VG']),
     key_points: '',
     variants: (product.variants || []).map((variant) => ({
       option: variant.title || variant.option1 || '',
@@ -156,7 +160,7 @@ async function fetchLiveCatalog(shopBaseUrl, signal) {
     url.searchParams.set('limit', '250');
     url.searchParams.set('page', String(page));
     const response = await fetch(url, {
-      headers: { Accept: 'application/json', 'User-Agent': "CLASS'CLOPE-Adviser/2.5" },
+      headers: { Accept: 'application/json', 'User-Agent': "CLASS'CLOPE-Adviser/3.1" },
       signal
     });
     if (!response.ok) throw new Error(`Catalogue Shopify ${response.status}`);

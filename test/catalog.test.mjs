@@ -67,3 +67,17 @@ test('ne confond pas le mot liquide avec la marque Liquideo', () => {
   const results = searchCatalog('je veux un liquide a base de tonka');
   assert.doesNotMatch(results[0].title, /Liquideo/i);
 });
+
+test('une recherche de pod exclut cartouches et résistances', () => {
+  const results = searchCatalog('pod le moins cher et le plus puissant', 8);
+  assert.ok(results.length >= 2);
+  assert.ok(results.every((product) => /matériel|pods/i.test(product.type)));
+  assert.ok(results.every((product) => !/cartouche|résistance|clearomiseur/i.test(`${product.type} ${product.title}`)));
+  assert.ok(results.slice(0, 3).every((product) => product.variants.some((variant) => variant.price)));
+});
+
+test('une recherche de cartouche conserve les cartouches', () => {
+  const results = searchCatalog('cartouche Q Pod Geekvape', 5);
+  assert.ok(results.length > 0);
+  assert.ok(results.every((product) => /cartouche/i.test(`${product.type} ${product.title}`)));
+});

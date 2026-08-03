@@ -1,77 +1,75 @@
-# Conseiller IA CLASS'CLOPE
+# Conseiller IA CLASS’CLOPE
 
-## Version 2.6 — Recherche catalogue hybride
+## Version 3.1 — Expert fiable
 
-Le contenu de cette archive doit être téléversé directement à la racine du dépôt GitHub. `package.json`, `src`, `data`, `scripts` et `test` doivent apparaître immédiatement, sans dossier V2 supplémentaire.
+Ce paquet contient uniquement le backend Node.js du conseiller. Il ne modifie ni le thème Shopify, ni le design, ni le sélecteur guidé, ni les calculateurs du site.
 
-- priorité stricte : sécurité, santé, dépannage, commande/SAV, compatibilité, information, recommandation ;
-- mémoire du parcours pour les réponses courtes ;
-- suivi de commande via l'espace client et transfert sécurisé pour le SAV ;
-- aucune carte commerciale pendant un dépannage ou une demande de commande ;
-- cartes affichées après l'explication et seulement lors d'une intention d'achat explicite ;
-- arrêt contrôlé et réponse de secours si un service répond trop lentement.
-- priorité immédiate aux références produit explicitement citées ;
-- recherche dans le titre, la marque, le type, les tags, la description, les saveurs, les métadonnées et les variantes ;
-- correspondance par mots entiers pour éviter les faux positifs comme `liquide` dans `Liquideo` ;
-- pondération renforcée des saveurs et des compatibilités, avec tolérance aux fautes courtes ;
-- tolérance aux variantes `emral`, `emerald` et `emrald` ;
-- seconde recherche rapide par suggestions Shopify, puis récupération complète du catalogue public lorsque les deux premiers niveaux ne donnent aucun résultat fiable ;
-- réponse déterministe et carte produit immédiate lorsqu'une correspondance unique est prouvée ;
-- formulation d'incertitude limitée aux résultats chargés, sans conclure abusivement à une absence sur le site ;
-- explication honnête d'un échec de recherche, sans inventer qu'un produit vient d'être chargé ;
-- aide technique générale utile lorsqu'un administrateur demande comment améliorer le conseiller ;
-- aucune source produit visible pendant un dépannage, une alerte sécurité ou une question médicale.
+La V3.1 combine trois couches :
 
-Serveur privé du conseiller virtuel de la page Shopify `Conseiller virtuel`.
+1. **Réponses déterministes** pour les sujets qui ne doivent pas être improvisés : sécurité, santé, mineurs, secrets, commande/SAV, livraison, retours, paiements, boutiques, calculs de boosters et dépannage courant.
+2. **Recherche hybride Shopify** : catalogue enrichi embarqué, suggestions Shopify, puis catalogue public complet. Les comparatifs prix/puissance/autonomie forcent la vérification du catalogue complet.
+3. **GPT-5.6 Sol** pour comprendre les demandes ouvertes, tenir une conversation naturelle et expliquer les compromis à partir des seules données fournies par le backend.
 
-## Ce qu’il fait
+## Corrections principales
 
-- utilise l’API Responses d’OpenAI sans exposer la clé au navigateur ;
-- diffuse la réponse mot par mot ;
-- conserve le contexte des derniers échanges transmis par la page ;
-- recherche d’abord les produits dans le catalogue CLASS’CLOPE ;
-- ne confirme une compatibilité que si le catalogue la contient ;
-- revérifie prix, variantes et disponibilité via Shopify avant d’afficher au maximum trois cartes ;
-- propose un parcours guidé court et un transfert vers la page Contact ;
-- accepte une télémétrie anonyme minimale sur `/api/events` ;
-- renvoie des liens vers les fiches pertinentes ;
-- limite la taille des requêtes, les origines autorisées et le nombre de demandes.
+- Tonka, Emrald Slash et variantes orthographiques conservés ;
+- boucle « Expérimenté » supprimée et état conversationnel explicite ;
+- comparatifs reconnus comme recommandations, avec contrôle Shopify en direct ;
+- familles produit strictes : pod, matériel, puff, liquide, concentré, cartouche et résistance ne sont plus mélangés ;
+- préférences négatives comprises, notamment « pas frais » ;
+- aucune carte si la correspondance n’est pas pertinente ;
+- compatibilités prouvées à partir des deux côtés de la relation produit ;
+- Luxe X3 ne provoque plus de fausse recommandation GTX ;
+- base officielle pour livraison, retours, paiement, contact et boutiques ;
+- calcul fiable des boosters nicotinés ;
+- réponses immédiates pour mineurs, non-fumeurs, exposition au liquide, accu mouillé et symptômes ;
+- protections contre l’extraction de clé ou de consignes internes ;
+- dernier delta OpenAI préservé même si le flux se termine sans séparateur final ;
+- une relance courte sur les erreurs OpenAI transitoires ;
+- nettoyage périodique des compteurs de limitation ;
+- validation stricte de l’URL de page transmise par Shopify.
 
-## Configuration
+## Déploiement Render
 
-1. Héberger ce dossier sur un service Node.js 20+ avec HTTPS (Render, Railway, Fly.io, etc.).
-2. Copier les variables de `.env.example` dans les variables privées de l’hébergeur.
-3. Créer une clé sur la plateforme OpenAI et la définir comme secret `OPENAI_API_KEY`.
-4. Définir `ALLOWED_ORIGINS` avec le domaine exact de la boutique.
-5. Déployer puis ouvrir `https://VOTRE-SERVEUR/health`.
-6. Dans l’éditeur du thème Shopify, ouvrir la section **Conseiller virtuel** et renseigner :
+Téléversez **le contenu de cette archive directement à la racine** du dépôt GitHub relié à Render. La racine doit contenir `package.json`, `src`, `data`, `scripts` et `test`, sans dossier parent V3.1.
 
-   `https://VOTRE-SERVEUR/api/adviser`
+Réglages Render :
 
-Ne jamais copier la clé OpenAI dans Shopify, un fichier JavaScript, GitHub ou ce chat.
+- Build Command : `npm install`
+- Start Command : `npm start`
+- Health Check Path : `/health`
+- Runtime : Node.js 20 ou plus récent
 
-Les routes publiques Shopify `/products/{handle}.js` et `/products.json` sont utilisées en lecture seule. La première confirme prix et disponibilité ; la seconde sert uniquement de recherche de secours et reste en cache dix minutes. Si Shopify est momentanément indisponible, le conseiller continue avec le catalogue embarqué et ne prétend pas connaître le stock.
+Variables :
 
-## Mise à jour du catalogue
-
-Exporter le catalogue Shopify complet, puis exécuter la commande avec l’export complet et, si nécessaire, un second CSV de nouveautés :
-
-```bash
-npm run build:catalog -- "/chemin/vers/export-complet.csv" "/chemin/vers/nouveautes.csv"
-npm test
+```text
+OPENAI_API_KEY=secret_existant
+OPENAI_MODEL=gpt-5.6-sol
+OPENAI_REASONING_EFFORT=medium
+OPENAI_MAX_OUTPUT_TOKENS=1100
+SHOP_BASE_URL=https://www.classclope.fr
+ALLOWED_ORIGINS=https://www.classclope.fr,https://classclope.fr
+MAX_REQUESTS_PER_5_MINUTES=25
+REQUEST_TIMEOUT_MS=25000
+SHOPIFY_CACHE_SECONDS=45
+SHOPIFY_CATALOG_CACHE_SECONDS=600
 ```
 
-Redéployer ensuite le serveur. Le fichier `data/catalog.json` est la base de connaissances contrôlée.
+Ne définissez pas `PORT` manuellement sur Render. Ne placez jamais `OPENAI_API_KEY` dans Shopify, GitHub ou le navigateur.
 
-## Test local
+Après déploiement, `/health` doit afficher :
+
+```json
+"version": "3.1.0-expert-fiable"
+```
+
+Le modèle par défaut est `gpt-5.6-sol`, choisi pour la qualité maximale. Pour réduire le coût et la latence, `gpt-5.6-terra` reste une alternative compatible, avec une baisse potentielle de qualité sur les cas conversationnels complexes.
+
+## Validation locale
 
 ```bash
-cp .env.example .env
-set -a
-. ./.env
-set +a
 npm test
-npm start
+OPENAI_API_KEY=test npm start
 ```
 
 Puis :
@@ -79,3 +77,26 @@ Puis :
 ```bash
 curl http://localhost:8787/health
 ```
+
+Les routes déterministes restent capables de répondre si OpenAI est momentanément indisponible. Les demandes ouvertes qui nécessitent le modèle renvoient alors une erreur contrôlée.
+
+## Données et maintenance
+
+### Catalogue
+
+Le fichier `data/catalog.json` contient les caractéristiques enrichies. Le serveur récupère également le catalogue Shopify public en direct et le met en cache dix minutes.
+
+Pour régénérer le catalogue enrichi à partir d’un export Shopify :
+
+```bash
+npm run build:catalog -- "/chemin/export-complet.csv" "/chemin/nouveautes.csv"
+npm test
+```
+
+### Base de connaissances
+
+`data/knowledge.json` contient les faits commerciaux officiels vérifiés le 3 août 2026 : livraison, retours, paiements, contact et boutiques. Si une politique change sur le site, mettez à jour ce fichier puis rejouez les tests avant déploiement.
+
+## Limites assumées
+
+Le conseiller ne peut pas lire une commande privée, décider d’un remboursement, confirmer un stock sans réponse Shopify, inventer une compatibilité, poser un diagnostic médical ou promettre un geste commercial. Dans ces cas, il explique la limite et oriente vers le canal humain approprié.

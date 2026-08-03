@@ -1,0 +1,83 @@
+{
+  "version": "2026-08-03",
+  "source": "https://www.classclope.fr",
+  "entries": [
+    {
+      "id": "shipping-delays",
+      "keywords": ["delai livraison", "delais livraison", "combien de temps livraison", "quand vais je recevoir", "temps de livraison", "expedition sous"],
+      "answer": "Les commandes sont expédiées sous 24 à 48 heures. La livraison prend ensuite généralement 2 à 4 jours ouvrés après expédition. Ces délais sont indicatifs et peuvent varier selon la destination, la période et le transporteur.",
+      "label": "Livraisons et retours",
+      "path": "/pages/livraisons-retours"
+    },
+    {
+      "id": "shipping-fees",
+      "keywords": ["frais de livraison", "livraison gratuite", "livraison offerte", "franco de port", "combien coute livraison"],
+      "answer": "La livraison coûte 5,90 € pour une commande inférieure à 29,90 €. Elle est offerte à partir de 29,90 € d’achat, sauf indication contraire affichée lors de la commande.",
+      "label": "Politique de livraison",
+      "path": "/pages/livraisons-retours"
+    },
+    {
+      "id": "shipping-carriers",
+      "keywords": ["transporteur", "colissimo", "point relais", "point retrait", "mode de livraison"],
+      "answer": "CLASS’CLOPE propose Colissimo à domicile et Colissimo en point retrait ou point relais. Les options réellement disponibles sont affichées au moment de la commande selon l’adresse de livraison.",
+      "label": "Modes de livraison",
+      "path": "/pages/livraisons-retours"
+    },
+    {
+      "id": "returns",
+      "keywords": ["retourner un produit", "retour produit", "faire un retour", "delai de retour", "droit de retractation", "retractation", "produit ouvert"],
+      "answer": "Vous disposez de 14 jours calendaires après réception pour demander un retour. Le produit doit être neuf, non utilisé, dans son emballage d’origine et en parfait état de revente. Les produits ouverts ou utilisés soumis à des règles d’hygiène ne sont pas repris. Contactez d’abord le service client avant tout envoi.",
+      "label": "Conditions de retour",
+      "path": "/pages/livraisons-retours"
+    },
+    {
+      "id": "return-fees",
+      "keywords": ["frais de retour", "qui paie le retour", "retour a ma charge"],
+      "answer": "Les frais de retour sont à la charge du client, sauf erreur de préparation ou produit défectueux constaté. Contactez le service client avant l’envoi afin de faire valider la procédure.",
+      "label": "Frais de retour",
+      "path": "/pages/livraisons-retours"
+    },
+    {
+      "id": "refund-delay",
+      "keywords": ["delai remboursement", "quand remboursement", "recevoir mon remboursement"],
+      "answer": "Après validation du retour, le remboursement est effectué sous 14 jours maximum selon la politique publiée par CLASS’CLOPE.",
+      "label": "Politique de remboursement",
+      "path": "/pages/politique-de-remboursement"
+    },
+    {
+      "id": "payment-methods",
+      "keywords": ["moyen de paiement", "moyens de paiement", "payer avec", "paypal", "apple pay", "google pay", "shop pay", "carte bancaire"],
+      "answer": "Les moyens de paiement annoncés sont la carte bancaire, Apple Pay, Google Pay, Shop Pay et PayPal. Les options proposées à votre commande apparaissent à l’étape du paiement.",
+      "label": "FAQ paiement",
+      "path": "/pages/faq"
+    },
+    {
+      "id": "guest-checkout",
+      "keywords": ["creer un compte", "sans compte", "compte obligatoire", "commander en invite"],
+      "answer": "La création d’un compte n’est pas obligatoire : vous pouvez commander en tant qu’invité.",
+      "label": "FAQ commande",
+      "path": "/pages/faq"
+    },
+    {
+      "id": "contact",
+      "keywords": ["adresse email", "email contact", "numero de telephone", "telephone service client", "contacter class clope", "contacter classclope"],
+      "answer": "Vous pouvez joindre CLASS’CLOPE à contact@classclope.fr ou au 09 73 68 68 96. Pour transmettre des informations liées à une commande, utilisez de préférence la page Contact sécurisée.",
+      "label": "Contacter CLASS’CLOPE",
+      "path": "/pages/contact"
+    },
+    {
+      "id": "stores",
+      "keywords": ["votre adresse", "adresse boutique", "vos boutiques", "ou sont vos boutiques", "magasin class clope", "magasin classclope"],
+      "answer": "CLASS’CLOPE possède quatre boutiques : Paris 15, Issy-les-Moulineaux, Rennes et Betton. Les adresses, horaires et itinéraires à jour sont regroupés sur la page Nos boutiques.",
+      "label": "Voir les boutiques",
+      "path": "/pages/nos-boutiques"
+    },
+    {
+      "id": "store-hours",
+      "keywords": ["horaire boutique", "horaires boutique", "dimanche", "ouvert dimanche", "ouverte dimanche", "ouvert aujourd hui", "heure ouverture", "heure fermeture"],
+      "answer": "Les horaires diffèrent selon la boutique. Paris 15 et Issy-les-Moulineaux sont fermées le dimanche ; Rennes est également fermée le dimanche ; Betton est ouverte le dimanche de 10 h à 13 h et fermée le lundi. Consultez la page Nos boutiques avant de vous déplacer, car les horaires peuvent évoluer.",
+      "label": "Horaires des boutiques",
+      "path": "/pages/nos-boutiques"
+    }
+  ]
+}
