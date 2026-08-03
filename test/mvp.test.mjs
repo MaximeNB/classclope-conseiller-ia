@@ -1,7 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { searchCatalog, productCards, verifyCompatibility } from '../src/catalog.mjs';
-import { conversationIntent, guidedQuestion, needsHuman, orderSupport, safetyResponse, shouldShowCatalogSources, shouldShowProductCards } from '../src/guidance.mjs';
+import {
+  assistantConfigurationResponse,
+  conversationIntent,
+  guidedQuestion,
+  needsHuman,
+  orderSupport,
+  safetyResponse,
+  searchFeedbackResponse,
+  shouldShowCatalogSources,
+  shouldShowProductCards
+} from '../src/guidance.mjs';
+import { liveSearchQueries } from '../src/shopify.mjs';
 
 test('une demande vague déclenche une question guidée courte', () => {
   const result = guidedQuestion('Aidez-moi à choisir mon premier kit', []);
@@ -12,6 +23,20 @@ test('une demande vague déclenche une question guidée courte', () => {
 test('un produit précis retrouvé ne déclenche pas le questionnaire générique', () => {
   const message = 'Je cherche un liquide à la fève tonka, vous avez Emrald Slash de OverCloud ?';
   assert.equal(guidedQuestion(message, [], searchCatalog(message)), null);
+});
+
+test('tonka seul déclenche une recommandation précise sans questionnaire', () => {
+  const products = searchCatalog('tonka');
+  const intent = conversationIntent('tonka', [], products);
+  assert.equal(intent, 'recommendation');
+  assert.equal(guidedQuestion('tonka', [], products), null);
+  assert.equal(shouldShowProductCards(intent, 'tonka', products), true);
+});
+
+test('la recherche Shopify rapide extrait le nom utile', () => {
+  const queries = liveSearchQueries('Je cherche le nouveau Emerald Slash de OverCloud');
+  assert.ok(queries.includes('emerald slash overcloud'));
+  assert.ok(queries.includes('emerald slash'));
 });
 
 test('les recommandations sont limitées à trois cartes', () => {
@@ -55,6 +80,32 @@ test('une demande explicite de choix conserve les cartes produit', () => {
   const intent = conversationIntent('Je cherche un e-liquide fruité');
   assert.equal(intent, 'recommendation');
   assert.equal(shouldShowProductCards(intent, 'Je cherche un e-liquide fruité'), true);
+});
+
+test('je veux un liquide est bien une recommandation produit', () => {
+  assert.equal(conversationIntent('je veux un liquide a base de tonka'), 'recommendation');
+});
+
+test('une question technique complète ne reprend pas à tort le parcours produit', () => {
+  const history = [
+    { role: 'user', content: 'je veux un liquide a base de tonka' },
+    { role: 'assistant', content: 'Emrald Slash correspond.' }
+  ];
+  const message = 'ok comment faire pour que je modifie ton code et que tu sois ultra performant';
+  assert.equal(conversationIntent(message, history), 'assistant_configuration');
+  assert.match(assistantConfigurationResponse(message), /synchroniser automatiquement tout le catalogue Shopify/i);
+});
+
+test('une contradiction sur un produit obtient une explication honnête', () => {
+  const products = searchCatalog('je veux un liquide a base de tonka');
+  const answer = searchFeedbackResponse('pourtant tu en as sur le site', products);
+  assert.match(answer, /mal classé/i);
+  assert.match(answer, /Emrald Slash/i);
+  assert.doesNotMatch(answer, /vient d'être chargé|apparaît maintenant/i);
+});
+
+test("pourquoi tu ne l'as pas trouvé est reconnu comme un retour de recherche", () => {
+  assert.equal(conversationIntent("pourquoi tu ne l'as pas trouvé"), 'search_feedback');
 });
 
 const intentScenarios = [

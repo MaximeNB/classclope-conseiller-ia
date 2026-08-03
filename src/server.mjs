@@ -1,14 +1,27 @@
 import { createServer } from 'node:http';
-import { compactContext, publicSources, searchCatalog, catalogStats, productCards, verifyCompatibility } from './catalog.mjs';
+import {
+  compactContext,
+  confidentProductAnswer,
+  hasConfidentMatch,
+  publicSources,
+  searchCatalog,
+  searchProducts,
+  mergeCatalogProducts,
+  catalogStats,
+  productCards,
+  verifyCompatibility
+} from './catalog.mjs';
 import { streamOpenAIResponse, parseOpenAIStream } from './openai.mjs';
 import { buildInput, SYSTEM_INSTRUCTIONS } from './prompt.mjs';
-import { enrichCardsFromShopify } from './shopify.mjs';
+import { enrichCardsFromShopify, getLiveCatalog, searchLiveCatalog } from './shopify.mjs';
 import {
   conversationIntent,
+  assistantConfigurationResponse,
   guidedQuestion,
   needsHuman,
   orderSupport,
   safetyResponse,
+  searchFeedbackResponse,
   shouldShowCatalogSources,
   shouldShowProductCards
 } from './guidance.mjs';
@@ -100,7 +113,7 @@ const server = createServer(async (request, response) => {
   if (request.method === 'GET' && url.pathname === '/health') {
     return sendJson(response, 200, {
       ok: true,
-      version: '2.4.0-catalogue-fiable',
+      version: '2.6.0-recherche-hybride',
       model,
       catalog_products: catalogStats.products,
       catalog_generated_at: catalogStats.generatedAt,
@@ -143,13 +156,49 @@ const server = createServer(async (request, response) => {
 
   const history = validHistory(body.history);
   const currentMatches = searchCatalog(message, 8);
-  const searchQuery = [...history.filter((item) => item.role === 'user').slice(-2).map((item) => item.content), message].join(' ');
-  const matches = Number(currentMatches[0]?._score || 0) >= 60 ? currentMatches : searchCatalog(searchQuery, 8);
+  let intent = conversationIntent(message, history, currentMatches);
+  const previousUserMessages = history.filter((item) => item.role === 'user').slice(-2).map((item) => item.content);
+  const searchQuery = intent === 'search_feedback'
+    ? previousUserMessages.join(' ')
+    : [...previousUserMessages, message].join(' ');
+  let matches = hasConfidentMatch(currentMatches) ? currentMatches : searchCatalog(searchQuery, 8);
+  const catalogRelevant = ['information', 'recommendation', 'compatibility', 'search_feedback'].includes(intent);
+  if (catalogRelevant && !hasConfidentMatch(matches)) {
+    const suggestAbort = new AbortController();
+    const suggestTimeout = setTimeout(() => suggestAbort.abort(new Error('SHOPIFY_SUGGEST_TIMEOUT')), 3_000);
+    try {
+      const suggestedProducts = await searchLiveCatalog(searchQuery, shopBaseUrl, suggestAbort.signal);
+      const suggestedMatches = searchProducts(searchQuery, mergeCatalogProducts(suggestedProducts), 8);
+      if (hasConfidentMatch(suggestedMatches) || Number(suggestedMatches[0]?._score || 0) > Number(matches[0]?._score || 0)) {
+        matches = suggestedMatches;
+      }
+    } catch {
+      // La seconde recherche complète reste disponible.
+    } finally {
+      clearTimeout(suggestTimeout);
+    }
+  }
+  if (catalogRelevant && !hasConfidentMatch(matches)) {
+    const liveAbort = new AbortController();
+    const liveTimeout = setTimeout(() => liveAbort.abort(new Error('LIVE_CATALOG_TIMEOUT')), 7_000);
+    try {
+      const liveProducts = await getLiveCatalog(shopBaseUrl, liveAbort.signal);
+      const liveMatches = searchProducts(searchQuery, mergeCatalogProducts(liveProducts), 8);
+      if (hasConfidentMatch(liveMatches) || Number(liveMatches[0]?._score || 0) > Number(matches[0]?._score || 0)) matches = liveMatches;
+    } catch {
+      // Le catalogue embarqué reste disponible si Shopify répond trop lentement.
+    } finally {
+      clearTimeout(liveTimeout);
+    }
+  }
+  intent = conversationIntent(message, history, matches);
   const compatibility = verifyCompatibility(searchQuery, matches);
-  const intent = conversationIntent(message, history);
   const guide = guidedQuestion(message, history, matches);
   const order = orderSupport(message, shopBaseUrl);
   const safety = safetyResponse(message);
+  const configurationHelp = assistantConfigurationResponse(message);
+  const searchFeedback = searchFeedbackResponse(message, matches);
+  const directAnswer = intent === 'recommendation' ? confidentProductAnswer(matches) : null;
   const sources = publicSources(matches, shopBaseUrl);
   const human = needsHuman(message, compatibility, intent);
   metrics.conversations += history.length ? 0 : 1;
@@ -169,6 +218,35 @@ const server = createServer(async (request, response) => {
     if (human) {
       metrics.human_transfers += 1;
       response.write(`${JSON.stringify({ type: 'human', url: new URL('/pages/contact', shopBaseUrl).toString() })}\n`);
+    }
+    response.write(`${JSON.stringify({ type: 'done' })}\n`);
+    return response.end();
+  }
+
+  if (configurationHelp) {
+    response.write(`${JSON.stringify({ type: 'delta', delta: configurationHelp })}\n`);
+    response.write(`${JSON.stringify({ type: 'done' })}\n`);
+    return response.end();
+  }
+
+  if (searchFeedback || directAnswer) {
+    const answer = searchFeedback || directAnswer;
+    if (hasConfidentMatch(matches)) {
+      response.write(`${JSON.stringify({ type: 'sources', items: publicSources(matches.slice(0, 1), shopBaseUrl) })}\n`);
+    }
+    response.write(`${JSON.stringify({ type: 'delta', delta: answer })}\n`);
+    if (hasConfidentMatch(matches)) {
+      const cardAbort = new AbortController();
+      const cardTimeout = setTimeout(() => cardAbort.abort(new Error('PRODUCT_CARD_TIMEOUT')), 5_000);
+      try {
+        const cards = await enrichCardsFromShopify(productCards(matches.slice(0, 1), shopBaseUrl, 1), shopBaseUrl, cardAbort.signal);
+        if (cards.length) {
+          metrics.recommendations += cards.length;
+          response.write(`${JSON.stringify({ type: 'products', items: cards })}\n`);
+        }
+      } finally {
+        clearTimeout(cardTimeout);
+      }
     }
     response.write(`${JSON.stringify({ type: 'done' })}\n`);
     return response.end();
@@ -216,7 +294,7 @@ const server = createServer(async (request, response) => {
     for await (const event of parseOpenAIStream(stream)) {
       response.write(`${JSON.stringify(event)}\n`);
     }
-    if (shouldShowProductCards(intent, message)) {
+    if (shouldShowProductCards(intent, message, matches)) {
       const cards = await enrichCardsFromShopify(productCards(matches, shopBaseUrl), shopBaseUrl, abortController.signal);
       const availableCards = cards.filter((card) => card.available !== false).slice(0, 3);
       if (availableCards.length) {
@@ -240,4 +318,9 @@ const server = createServer(async (request, response) => {
 
 server.listen(port, () => {
   console.log(`Conseiller CLASS'CLOPE démarré sur http://localhost:${port}`);
+  const warmAbort = new AbortController();
+  const warmTimeout = setTimeout(() => warmAbort.abort(new Error('CATALOG_WARMUP_TIMEOUT')), 7_000);
+  void getLiveCatalog(shopBaseUrl, warmAbort.signal)
+    .catch(() => {})
+    .finally(() => clearTimeout(warmTimeout));
 });

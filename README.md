@@ -1,6 +1,6 @@
 # Conseiller IA CLASS'CLOPE
 
-## Version 2.4 — Catalogue fiable
+## Version 2.6 — Recherche catalogue hybride
 
 Le contenu de cette archive doit être téléversé directement à la racine du dépôt GitHub. `package.json`, `src`, `data`, `scripts` et `test` doivent apparaître immédiatement, sans dossier V2 supplémentaire.
 
@@ -12,8 +12,14 @@ Le contenu de cette archive doit être téléversé directement à la racine du 
 - arrêt contrôlé et réponse de secours si un service répond trop lentement.
 - priorité immédiate aux références produit explicitement citées ;
 - recherche dans le titre, la marque, le type, les tags, la description, les saveurs, les métadonnées et les variantes ;
+- correspondance par mots entiers pour éviter les faux positifs comme `liquide` dans `Liquideo` ;
+- pondération renforcée des saveurs et des compatibilités, avec tolérance aux fautes courtes ;
 - tolérance aux variantes `emral`, `emerald` et `emrald` ;
+- seconde recherche rapide par suggestions Shopify, puis récupération complète du catalogue public lorsque les deux premiers niveaux ne donnent aucun résultat fiable ;
+- réponse déterministe et carte produit immédiate lorsqu'une correspondance unique est prouvée ;
 - formulation d'incertitude limitée aux résultats chargés, sans conclure abusivement à une absence sur le site ;
+- explication honnête d'un échec de recherche, sans inventer qu'un produit vient d'être chargé ;
+- aide technique générale utile lorsqu'un administrateur demande comment améliorer le conseiller ;
 - aucune source produit visible pendant un dépannage, une alerte sécurité ou une question médicale.
 
 Serveur privé du conseiller virtuel de la page Shopify `Conseiller virtuel`.
@@ -44,7 +50,7 @@ Serveur privé du conseiller virtuel de la page Shopify `Conseiller virtuel`.
 
 Ne jamais copier la clé OpenAI dans Shopify, un fichier JavaScript, GitHub ou ce chat.
 
-La route publique Shopify `/products/{handle}.js` est utilisée en lecture seule. Si elle est momentanément indisponible, le conseiller affiche « Disponibilité à confirmer » et ne prétend pas connaître le stock.
+Les routes publiques Shopify `/products/{handle}.js` et `/products.json` sont utilisées en lecture seule. La première confirme prix et disponibilité ; la seconde sert uniquement de recherche de secours et reste en cache dix minutes. Si Shopify est momentanément indisponible, le conseiller continue avec le catalogue embarqué et ne prétend pas connaître le stock.
 
 ## Mise à jour du catalogue
 

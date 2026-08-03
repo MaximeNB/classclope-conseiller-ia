@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { searchCatalog } from '../src/catalog.mjs';
+import { confidentProductAnswer, searchCatalog } from '../src/catalog.mjs';
 
 test('retrouve GTX avec le matériel Luxe XR MAX', () => {
   const results = searchCatalog('J’ai un Luxe XR MAX Vaporesso, quelle résistance choisir ?');
@@ -27,4 +27,43 @@ test('retrouve Emrald Slash malgré les variantes emerald et emral', () => {
   for (const query of ['Emerald Slash OverCloud', 'Emral Slash OverCloud']) {
     assert.match(searchCatalog(query)[0].title, /Emrald Slash/i);
   }
+});
+
+test('retrouve Emrald Slash avec le seul mot tonka et un score fiable', () => {
+  const results = searchCatalog('tonka');
+  assert.match(results[0].title, /Emrald Slash/i);
+  assert.ok(results[0]._score >= 60);
+});
+
+test('comprend fève tonka comme la saveur tonka', () => {
+  for (const query of ['fève tonka', 'fève de tonka']) {
+    assert.match(searchCatalog(query)[0].title, /Emrald Slash/i);
+  }
+});
+
+test('retrouve Emrald Slash avec cookie tonka', () => {
+  assert.match(searchCatalog('cookie tonka')[0].title, /Emrald Slash/i);
+});
+
+test('retrouve Tonka dès la vraie première phrase du client', () => {
+  const results = searchCatalog('je veux un liquide a base de tonka');
+  assert.match(results[0].title, /Emrald Slash/i);
+  assert.ok(results[0]._score >= 60);
+  assert.match(confidentProductAnswer(results), /Tonka, Biscuit et Cookie/i);
+});
+
+test('retrouve Tonka avec plusieurs formulations naturelles', () => {
+  for (const query of [
+    'je cherche un liquide à la fève tonka',
+    'avez-vous un liquide tonka ?',
+    'liquide tonka',
+    'je veux un liquide gourmand au tonka'
+  ]) {
+    assert.match(searchCatalog(query)[0].title, /Emrald Slash/i, query);
+  }
+});
+
+test('ne confond pas le mot liquide avec la marque Liquideo', () => {
+  const results = searchCatalog('je veux un liquide a base de tonka');
+  assert.doesNotMatch(results[0].title, /Liquideo/i);
 });
