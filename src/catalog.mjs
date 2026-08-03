@@ -15,6 +15,8 @@ export function normalize(value = '') {
     .toLowerCase()
     .replace(/[^a-z0-9.]+/g, ' ')
     .replace(/\bxross\b/g, 'xros')
+    .replace(/\bemerald\b/g, 'emrald')
+    .replace(/\bemral\b/g, 'emrald')
     .replace(/\bxrmax\b/g, 'xr max')
     .replace(/\bgeek vape\b/g, 'geekvape')
     .replace(/\bvapo resso\b/g, 'vaporesso')

@@ -1,12 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { searchCatalog, productCards, verifyCompatibility } from '../src/catalog.mjs';
-import { conversationIntent, guidedQuestion, needsHuman, orderSupport, safetyResponse, shouldShowProductCards } from '../src/guidance.mjs';
+import { conversationIntent, guidedQuestion, needsHuman, orderSupport, safetyResponse, shouldShowCatalogSources, shouldShowProductCards } from '../src/guidance.mjs';
 
 test('une demande vague déclenche une question guidée courte', () => {
   const result = guidedQuestion('Aidez-moi à choisir mon premier kit', []);
   assert.equal(result.text, 'Pour bien vous orienter : êtes-vous débutant ou expérimenté ?');
   assert.ok(result.choices.length <= 4);
+});
+
+test('un produit précis retrouvé ne déclenche pas le questionnaire générique', () => {
+  const message = 'Je cherche un liquide à la fève tonka, vous avez Emrald Slash de OverCloud ?';
+  assert.equal(guidedQuestion(message, [], searchCatalog(message)), null);
 });
 
 test('les recommandations sont limitées à trois cartes', () => {
@@ -120,6 +125,13 @@ test('la sécurité impose un arrêt immédiat', () => {
 
 test('aucune carte sur une commande', () => {
   assert.equal(shouldShowProductCards('order_support', 'Je cherche ma commande'), false);
+});
+
+test('aucune source catalogue visible pendant le dépannage ou le SAV', () => {
+  assert.equal(shouldShowCatalogSources('troubleshooting'), false);
+  assert.equal(shouldShowCatalogSources('order_support'), false);
+  assert.equal(shouldShowCatalogSources('information'), false);
+  assert.equal(shouldShowCatalogSources('recommendation'), true);
 });
 
 test('aucune carte sur une réponse courte de recommandation mémorisée', () => {

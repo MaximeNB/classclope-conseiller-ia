@@ -56,8 +56,13 @@ export function shouldShowProductCards(intent, message = '') {
   return intent === 'recommendation' && RECOMMENDATION.some((pattern) => pattern.test(message));
 }
 
-export function guidedQuestion(message, history = []) {
+export function shouldShowCatalogSources(intent) {
+  return ['compatibility', 'recommendation'].includes(intent);
+}
+
+export function guidedQuestion(message, history = [], products = []) {
   if (conversationIntent(message, history) !== 'recommendation') return null;
+  if (Number(products[0]?._score || 0) >= 60) return null;
   const combined = [...users(history), message].join(' ').toLowerCase();
   if (/\b(e liquide|e-liquide|eliquide|liquide)\b/.test(combined)) {
     if (!/\b(fruit|classic|tabac|menthe|gourmand|boisson)\b/.test(combined)) {

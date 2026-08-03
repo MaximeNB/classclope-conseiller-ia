@@ -16,3 +16,15 @@ test('retrouve XROS malgré une faute courante', () => {
   const results = searchCatalog('cartouche xross 3ml vaporesso');
   assert.ok(results.some((product) => /XROS 3\s*ml/i.test(product.title)));
 });
+
+test('retrouve Emrald Slash avec la tonka et le nom exact', () => {
+  const results = searchCatalog('Je cherche un liquide à la fève tonka, vous avez Emrald Slash de OverCloud ?');
+  assert.match(results[0].title, /Emrald Slash 50ml - Overcloud/i);
+  assert.ok(results[0]._score >= 60);
+});
+
+test('retrouve Emrald Slash malgré les variantes emerald et emral', () => {
+  for (const query of ['Emerald Slash OverCloud', 'Emral Slash OverCloud']) {
+    assert.match(searchCatalog(query)[0].title, /Emrald Slash/i);
+  }
+});

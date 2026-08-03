@@ -1,6 +1,8 @@
 # Conseiller IA CLASS'CLOPE
 
-## Version 2.2 Premium
+## Version 2.4 — Catalogue fiable
+
+Le contenu de cette archive doit être téléversé directement à la racine du dépôt GitHub. `package.json`, `src`, `data`, `scripts` et `test` doivent apparaître immédiatement, sans dossier V2 supplémentaire.
 
 - priorité stricte : sécurité, santé, dépannage, commande/SAV, compatibilité, information, recommandation ;
 - mémoire du parcours pour les réponses courtes ;
@@ -8,6 +10,11 @@
 - aucune carte commerciale pendant un dépannage ou une demande de commande ;
 - cartes affichées après l'explication et seulement lors d'une intention d'achat explicite ;
 - arrêt contrôlé et réponse de secours si un service répond trop lentement.
+- priorité immédiate aux références produit explicitement citées ;
+- recherche dans le titre, la marque, le type, les tags, la description, les saveurs, les métadonnées et les variantes ;
+- tolérance aux variantes `emral`, `emerald` et `emrald` ;
+- formulation d'incertitude limitée aux résultats chargés, sans conclure abusivement à une absence sur le site ;
+- aucune source produit visible pendant un dépannage, une alerte sécurité ou une question médicale.
 
 Serveur privé du conseiller virtuel de la page Shopify `Conseiller virtuel`.
 

@@ -3,7 +3,15 @@ import { compactContext, publicSources, searchCatalog, catalogStats, productCard
 import { streamOpenAIResponse, parseOpenAIStream } from './openai.mjs';
 import { buildInput, SYSTEM_INSTRUCTIONS } from './prompt.mjs';
 import { enrichCardsFromShopify } from './shopify.mjs';
-import { conversationIntent, guidedQuestion, needsHuman, orderSupport, safetyResponse, shouldShowProductCards } from './guidance.mjs';
+import {
+  conversationIntent,
+  guidedQuestion,
+  needsHuman,
+  orderSupport,
+  safetyResponse,
+  shouldShowCatalogSources,
+  shouldShowProductCards
+} from './guidance.mjs';
 
 const port = Number(process.env.PORT || 8787);
 const apiKey = process.env.OPENAI_API_KEY || '';
@@ -92,7 +100,7 @@ const server = createServer(async (request, response) => {
   if (request.method === 'GET' && url.pathname === '/health') {
     return sendJson(response, 200, {
       ok: true,
-      version: '2.2.0-premium',
+      version: '2.4.0-catalogue-fiable',
       model,
       catalog_products: catalogStats.products,
       catalog_generated_at: catalogStats.generatedAt,
@@ -134,11 +142,12 @@ const server = createServer(async (request, response) => {
   if (!message) return sendJson(response, 400, { error: 'Question manquante' }, cors);
 
   const history = validHistory(body.history);
-  const searchQuery = [...history.filter((item) => item.role === 'user').slice(-3).map((item) => item.content), message].join(' ');
-  const matches = searchCatalog(searchQuery, 8);
+  const currentMatches = searchCatalog(message, 8);
+  const searchQuery = [...history.filter((item) => item.role === 'user').slice(-2).map((item) => item.content), message].join(' ');
+  const matches = Number(currentMatches[0]?._score || 0) >= 60 ? currentMatches : searchCatalog(searchQuery, 8);
   const compatibility = verifyCompatibility(searchQuery, matches);
   const intent = conversationIntent(message, history);
-  const guide = guidedQuestion(message, history);
+  const guide = guidedQuestion(message, history, matches);
   const order = orderSupport(message, shopBaseUrl);
   const safety = safetyResponse(message);
   const sources = publicSources(matches, shopBaseUrl);
@@ -191,7 +200,9 @@ const server = createServer(async (request, response) => {
     compatibility,
     intent
   });
-  response.write(`${JSON.stringify({ type: 'sources', items: sources })}\n`);
+  if (shouldShowCatalogSources(intent)) {
+    response.write(`${JSON.stringify({ type: 'sources', items: sources })}\n`);
+  }
 
   try {
     const stream = await streamOpenAIResponse({
